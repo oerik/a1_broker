@@ -25,6 +25,23 @@
 #define TARGET_SERVER "192.168.1.106"
 #define TARGET_PORT 3002
 
+/* This is the same struct as used in the cube. Fully compatible, same processor core and standards */
+
+struct payloadData {
+  int8_t type;
+  int8_t version;
+  char IMEI[16];
+  float temperature;
+  float humidity;
+  float luminance;
+  float sound;
+  float x_acc;
+  float y_acc;
+  float z_acc;
+  float battery;
+  int8_t button;
+} __attribute__((packed));
+
 struct thread_params
 {
 	int len;
@@ -53,6 +70,7 @@ int my_pthread_create_small(void *(*start_routine) (void *), void *arg)
     return s_thread;
 }
 
+/* Listen for UDP traffic and start a thread for each incoming packet */
 void start_listener(void)
 {
     int recv_len;
@@ -79,7 +97,10 @@ void start_listener(void)
 				   path with a predefined exitpoint instead of 
 				   a break */
         }
-        buf = realloc(buf, recv_len);
+        buf = realloc(buf, recv_len+1);
+	buf[recv_len] = 0;
+	printf("received: <%i> should be <%i>\n", recv_len, sizeof(struct payloadData));
+
 	struct thread_params *tp = malloc(sizeof(*tp));
      	tp->len = recv_len;
 	tp->buf = buf;	
@@ -90,6 +111,9 @@ done:
     pthread_exit(0);
 }
 
+
+/* Connect to a remote server
+ * Returns socket or -1 in case of an error */
 int connect_to(char *hostname, int port)
 {
 	int sockfd;
@@ -120,6 +144,8 @@ int connect_to(char *hostname, int port)
 	return sockfd;
 }
 
+/* High level socket send function (printf format) */
+
 int va_my_write(int sock, const char *command_fmt, ...)
 {
     va_list ap;
@@ -132,12 +158,19 @@ int va_my_write(int sock, const char *command_fmt, ...)
     return write(sock, buffer, len);
 }
 
+/* Connect to the target server and send json data */
 void *udp_convert_and_transmit(void *thread_params)
 {
 	struct thread_params *tp = thread_params;
 	int fd = connect_to(TARGET_SERVER, TARGET_PORT);
-	va_my_write(fd, "Bla die bla <%i>\n", fd);
+	if (fd != -1)
+	{
+		struct payloadData *p = tp->buf;
+
+		va_my_write(fd, "{\"Device_ID\":\"%s\",\"temp\":%.2f,\"lum\":%.2f,\"x\":%.2f,\"y\":%.2f,\"z\":%.2f,\"bat\":%.2f,\"hum\":%.2f,\"db\":%.2f, \"button\":%d}\n",
+        			p->IMEI, p->temperature, p->luminance, p->x_acc, p->y_acc, p->z_acc, p->battery, p->humidity, p->sound, p->button);
 	close(fd);
+	}
 	free(tp->buf);
 	free(tp);
 	pthread_exit(0);
