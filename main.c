@@ -14,12 +14,15 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <stdarg.h>
+#include <netdb.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
 
+
 #define BROKER_LISTEN_PORT 3001
-#define TARGET_SERVER 192.168.1.106
+#define TARGET_SERVER "192.168.1.106"
 #define TARGET_PORT 3002
 
 struct thread_params
@@ -87,9 +90,54 @@ done:
     pthread_exit(0);
 }
 
+int connect_to(char *hostname, int port)
+{
+	int sockfd;
+        struct hostent *he;
+        struct sockaddr_in their_addr; /* connector's address information */
+
+        if ((he=gethostbyname(hostname)) == NULL) {  /* get the host info */
+            printf("gethostbyname error %s\n", strerror(errno));
+	    return -1;
+        }
+
+        if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+            printf("socket error: %s\n", strerror(errno));
+	    return -1;
+        }
+
+        memset(&their_addr, 0, sizeof(their_addr));     /* zero the rest of the struct */
+        their_addr.sin_family = AF_INET;      /* host byte order */
+        their_addr.sin_port = htons(port);    /* short, network byte order */
+        their_addr.sin_addr = *((struct in_addr *)he->h_addr);
+
+        if (connect(sockfd, (struct sockaddr *)&their_addr, \
+                                              sizeof(struct sockaddr)) == -1) {
+            printf("connect error: %s", strerror(errno));
+	    return -1;
+        }
+	
+	return sockfd;
+}
+
+int va_my_write(int sock, const char *command_fmt, ...)
+{
+    va_list ap;
+    char buffer[512];  /* Some hard limit */
+    int len;
+
+    va_start(ap, command_fmt);
+    len = vsnprintf(buffer, sizeof(buffer), command_fmt, ap);
+    va_end(ap);
+    return write(sock, buffer, len);
+}
+
 void *udp_convert_and_transmit(void *thread_params)
 {
 	struct thread_params *tp = thread_params;
+	int fd = connect_to(TARGET_SERVER, TARGET_PORT);
+	va_my_write(fd, "Bla die bla <%i>\n", fd);
+	close(fd);
 	free(tp->buf);
 	free(tp);
 	pthread_exit(0);
