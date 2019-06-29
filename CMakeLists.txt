@@ -16,10 +16,14 @@ exec_program(
 
 add_definitions(-D_GNU_SOURCE -Wall -Wextra -Werror -ggdb -DGITREVISION=${VERSION} -O2)
 
+find_package (Threads)
+
 aux_source_directory(. SRC_FILES)
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 SET(CMAKE_INSTALL_PREFIX /usr)
 include_directories("${PROJECT_BINARY_DIR}")
+
+target_link_libraries (${PROJECT_NAME} ${CMAKE_THREAD_LIBS_INIT} dl ) 
 
 # Add "tags" target and make my_project depending on this target.
 set_source_files_properties(tags PROPERTIES GENERATED true)
