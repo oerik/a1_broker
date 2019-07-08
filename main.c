@@ -89,6 +89,7 @@ void start_listener(void)
     bind(s , (struct sockaddr*)&si_me, sizeof(si_me));
     while(1)
     {
+	struct payloadData *pd;
         char *buf = malloc(65536);
         if ((recv_len = recvfrom(s, buf, 65535, 0, (struct sockaddr *) &si_other, &slen)) == -1)
         {
@@ -99,7 +100,8 @@ void start_listener(void)
         }
         buf = realloc(buf, recv_len+1);
 	buf[recv_len] = 0;
-	printf("received: <%i> should be <%i>\n", recv_len, sizeof(struct payloadData));
+	pd = (struct payloadData *)buf;
+	printf("received type %x;%x, len = %i == %i>n", pd->type, pd->version, recv_len, sizeof(struct payloadData));
 
 	struct thread_params *tp = malloc(sizeof(*tp));
      	tp->len = recv_len;
@@ -167,8 +169,8 @@ void *udp_convert_and_transmit(void *thread_params)
 	{
 		struct payloadData *p = tp->buf;
 
-		va_my_write(fd, "{\"Device_ID\":\"%s\",\"temp\":%.2f,\"lum\":%.2f,\"x\":%.2f,\"y\":%.2f,\"z\":%.2f,\"bat\":%.2f,\"hum\":%.2f,\"db\":%.2f, \"button\":%d}\n",
-        			p->IMEI, p->temperature, p->luminance, p->x_acc, p->y_acc, p->z_acc, p->battery, p->humidity, p->sound, p->button);
+		va_my_write(fd, "{\"type\":%i,\"version\":%i,\"Device_ID\":\"%s\",\"temp\":%.2f,\"lum\":%.2f,\"x\":%.2f,\"y\":%.2f,\"z\":%.2f,\"bat\":%.2f,\"hum\":%.2f,\"db\":%.2f, \"button\":%d, \"timestamp\":%ld}\n",
+        			p->type, p->version, p->IMEI, p->temperature, p->luminance, p->x_acc, p->y_acc, p->z_acc, p->battery, p->humidity, p->sound, p->button), time(NULL);
 	close(fd);
 	}
 	free(tp->buf);
