@@ -101,7 +101,7 @@ void start_listener(void)
         buf = realloc(buf, recv_len+1);
 	buf[recv_len] = 0;
 	pd = (struct payloadData *)buf;
-	printf("received type %x;%x, len = %i == %i>n", pd->type, pd->version, recv_len, sizeof(struct payloadData));
+	printf("received type %x;%x, len = %i == %i\n", pd->type, pd->version, recv_len, sizeof(struct payloadData));
 
 	struct thread_params *tp = malloc(sizeof(*tp));
      	tp->len = recv_len;
